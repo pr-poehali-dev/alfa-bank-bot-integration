@@ -1,0 +1,42 @@
+{
+  "tests": [
+    {
+      "name": "Register or get existing user",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "register",
+        "telegram_id": 987654321,
+        "username": "newuser",
+        "first_name": "NewTest"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "user": {
+          "telegram_id": "number",
+          "promo_code": "string",
+          "balance": "number"
+        }
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get user stats",
+      "method": "GET",
+      "path": "/?telegram_id=987654321",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "user": {
+          "telegram_id": "number",
+          "promo_code": "string",
+          "balance": "number"
+        },
+        "stats": {
+          "total_referrals": "number",
+          "cards_issued": "number"
+        }
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
