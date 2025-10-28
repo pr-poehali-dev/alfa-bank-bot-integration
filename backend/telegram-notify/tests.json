@@ -1,0 +1,39 @@
+{
+  "tests": [
+    {
+      "name": "Send new referral notification",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "telegram_id": 123456789,
+        "type": "new_referral",
+        "data": {
+          "referral_name": "Иван"
+        }
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": "boolean"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Send card issued notification",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "telegram_id": 123456789,
+        "type": "card_issued",
+        "data": {
+          "referral_name": "Мария",
+          "amount": 200
+        }
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": "boolean"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 import psycopg2
 from psycopg2.extras import RealDictCursor
+import urllib.request
+import urllib.parse
 
 def decimal_default(obj):
     if isinstance(obj, Decimal):
@@ -39,6 +41,23 @@ def convert_decimals(data):
     elif isinstance(data, Decimal):
         return float(data)
     return data
+
+def send_notification(telegram_id: int, notification_type: str, data: dict):
+    try:
+        notify_url = 'https://functions.poehali.dev/e7907ddc-c7b7-415d-af3c-cceb0387e1f8'
+        payload = {
+            'telegram_id': telegram_id,
+            'type': notification_type,
+            'data': data
+        }
+        req = urllib.request.Request(
+            notify_url,
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/json'}
+        )
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method: str = event.get('httpMethod', 'GET')
@@ -104,12 +123,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 new_user = cursor.fetchone()
                 
                 if referrer_promo:
-                    cursor.execute("SELECT telegram_id FROM users WHERE promo_code = %s", (referrer_promo,))
+                    cursor.execute("SELECT telegram_id, first_name FROM users WHERE promo_code = %s", (referrer_promo,))
                     referrer = cursor.fetchone()
                     if referrer:
                         cursor.execute(
                             "INSERT INTO referrals (referrer_id, referred_id, promo_code) VALUES (%s, %s, %s)",
                             (referrer['telegram_id'], telegram_id, referrer_promo)
+                        )
+                        
+                        send_notification(
+                            referrer['telegram_id'],
+                            'new_referral',
+                            {'referral_name': first_name or username or 'Новый пользователь'}
                         )
                 
                 conn.commit()
@@ -144,6 +169,13 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     )
                     
                     cursor.execute(
+                        "SELECT first_name FROM users WHERE telegram_id = %s",
+                        (telegram_id,)
+                    )
+                    referred_user = cursor.fetchone()
+                    referred_name = referred_user['first_name'] if referred_user else 'Пользователь'
+                    
+                    cursor.execute(
                         "INSERT INTO transactions (user_id, amount, type, description) VALUES (%s, %s, %s, %s)",
                         (referrer_id, reward_amount, 'referral_reward', f'Reward for referral {telegram_id}')
                     )
@@ -154,6 +186,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     )
                     
                     conn.commit()
+                    
+                    send_notification(
+                        referrer_id,
+                        'card_issued',
+                        {'referral_name': referred_name, 'amount': reward_amount}
+                    )
                 
                 cursor.close()
                 conn.close()
